@@ -1,0 +1,1 @@
+You can find what areas have how many NPCs and what each NPC type number between 1-21 means in this document https://docs.google.com/spreadsheets/d/1_t2IkxE8N7vet5HlfyBa8LP6oY8-J9URdy8hnSgJB08/edit?usp=sharing
