@@ -50,12 +50,14 @@ TIME_WINDOWS = [
     ("Honey", 54),
     ("b-out menu static/egg", 2),
     ("x-out party static/egg", 1),
-    ("b-out menu Lati@s (step)", 8),
-    ("7-frame step (Lati@s x-out + StepEnc b-out)", 7),
     ("b-out menu phenomena (step)", 11),
     ("x-out party phenomena (step)", 10),
+    ("b-out menu step encounter (turn)", 7),
     ("x-out party step encounter (turn)", 6),
+    ("b-out menu Lati@s (step)", 10),
+    ("x-out party Lati@s (step)", 9),
 ]
+
 
 
 # ===========================================================
