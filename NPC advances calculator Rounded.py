@@ -50,11 +50,12 @@ TIME_WINDOWS = [
     ("Honey", 54),
     ("b-out menu static/egg", 2),
     ("x-out party static/egg", 1),
-    ("b-out menu Lati@s (step)", 8),
-    ("7-frame step (Lati@s x-out + StepEnc b-out)", 7),
     ("b-out menu phenomena (step)", 11),
     ("x-out party phenomena (step)", 10),
+    ("b-out menu step encounter (turn)", 7),
     ("x-out party step encounter (turn)", 6),
+    ("b-out menu Lati@s (step)", 10),
+    ("x-out party Lati@s (step)", 9),
 ]
 
 
@@ -96,7 +97,7 @@ def events_distribution_for_L(W, L, event_phases):
 def single_npc_distribution(W, special_type, p_break1):
     dist_events_total = defaultdict(float)
 
-    # ---- TYPE 1: special no-break logic ----
+    # ---- TYPE 1 ----
     if special_type == "type1":
         for c, pc in COOLDOWN_PROBS:
             dist_L = events_distribution_for_L(W, c, [0])
@@ -104,7 +105,7 @@ def single_npc_distribution(W, special_type, p_break1):
                 dist_events_total[e] += pc * p
         factor = 2
 
-    # ---- TYPE 2: always 1-frame break (two events per cycle) ----
+    # ---- TYPE 2 ----
     elif special_type == "type2":
         for c, pc in COOLDOWN_PROBS:
             L = c + 1
@@ -114,13 +115,12 @@ def single_npc_distribution(W, special_type, p_break1):
                 dist_events_total[e] += pc * p
         factor = 1
 
-    # ---- TYPE 3: break=1 or break=8 with given probability ----
+    # ---- TYPE 3 ----
     else:
         p_break8 = 1 - p_break1
 
         for c, pc in COOLDOWN_PROBS:
 
-            # break = 1
             if p_break1 > 0:
                 L1 = c + 1
                 phases = [0, L1 - 1]
@@ -128,7 +128,6 @@ def single_npc_distribution(W, special_type, p_break1):
                 for e, p in dist_L1.items():
                     dist_events_total[e] += pc * p_break1 * p
 
-            # break = 8
             if p_break8 > 0:
                 L8 = c + 8
                 phases = [0, L8 - 8]
@@ -138,11 +137,8 @@ def single_npc_distribution(W, special_type, p_break1):
 
         factor = 1
 
-    # Convert events → advances
-    if dist_events_total:
-        max_events = max(dist_events_total.keys())
-    else:
-        max_events = 0
+    # Convert to advances
+    max_events = max(dist_events_total.keys()) if dist_events_total else 0
     max_adv = max_events * factor
 
     dist_adv = [0.0] * (max_adv + 1)
@@ -180,7 +176,7 @@ def main():
         npc_specs.append((special_type, p_break1))
 
     # Compute distributions per window
-    window_infos = []  # each: dict with all needed info per window
+    window_infos = []
 
     for name, W in TIME_WINDOWS:
         dists = []
@@ -196,28 +192,23 @@ def main():
             total = convolve(total, d)
 
         dist = total
-        # Full possible advances: indices with p > EPS
-        full_indices = [i for i, p in enumerate(dist) if p > EPS]
-        if not full_indices:
-            # No probability mass? (shouldn't happen) – fallback
-            full_min = 0
-            full_max = 0
-        else:
-            full_min = min(full_indices)
-            full_max = max(full_indices)
 
-        # Display range: advances with >=1% chance
+        # full range (true possible advances)
+        full_indices = [i for i, p in enumerate(dist) if p > EPS]
+        full_min = min(full_indices) if full_indices else 0
+        full_max = max(full_indices) if full_indices else 0
+
+        # significant range (>=1%)
         signif_indices = [i for i, p in enumerate(dist) if p * 100 >= 1.0 - 1e-9]
 
         if signif_indices:
             min_show = min(signif_indices)
             max_show = max(signif_indices)
         else:
-            # If no advances reach 1%, show the full range
             min_show = full_min
             max_show = full_max
 
-        height = max_show - min_show + 1  # number of data rows (adv lines)
+        height = max_show - min_show + 1
 
         window_infos.append({
             "name": name,
@@ -230,54 +221,44 @@ def main():
             "height": height
         })
 
-    # For printing side-by-side: each table has height+1 (data + possible advances line)
+    # Height for printing
     max_height = max(info["height"] + 1 for info in window_infos)
 
     print("\n===================================================")
     print("    RESULTS — SIDE-BY-SIDE TABLES (Sheets Ready)")
     print("===================================================\n")
 
-    # Header row: window names
+    # Header row
     header_parts = []
     for info in window_infos:
-        name = info["name"]
-        W = info["W"]
-        header_parts.append(f"{name} ({W})\t")
-        header_parts.append("\t")
-        header_parts.append("\t")  # spacer
+        header_parts.append(f"{info['name']} ({info['W']})\t\t\t")
     print("".join(header_parts))
 
-    # Second header row: column labels
+    # Column labels
     label_parts = []
     for _ in window_infos:
-        label_parts.append("Advances\tOdds in %\t\t")
+        label_parts.append("Advance\tPercent\t\t")
     print("".join(label_parts))
 
-    # Data rows + possible-advances row
+    # Table rows
     for r in range(max_height):
         row_parts = []
         for info in window_infos:
             dist = info["dist"]
             min_show = info["min_show"]
             max_show = info["max_show"]
+            data_height = info["height"]
             full_min = info["full_min"]
             full_max = info["full_max"]
-            data_height = info["height"]  # number of data rows
 
             if r < data_height:
                 adv = min_show + r
-                if 0 <= adv < len(dist):
-                    p = dist[adv] * 100
-                else:
-                    p = 0.0
+                p = dist[adv] * 100 if 0 <= adv < len(dist) else 0.0
                 row_parts.append(f"{adv}\t{p:.2f}\t\t")
             elif r == data_height:
-                # possible advances line
-                row_parts.append(f"possible advances: {full_min}-{full_max}\t\t\t")
+                row_parts.append(f"possible advances {full_min}-{full_max}\t\t\t")
             else:
-                # beyond this table's height: blank
                 row_parts.append("\t\t\t")
-
         print("".join(row_parts))
 
 
